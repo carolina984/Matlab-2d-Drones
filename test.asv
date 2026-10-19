@@ -1,0 +1,153 @@
+clc
+clear
+
+%% simulation parameters
+num_uavs = 3;
+
+T = 20;
+dt = 0.05;
+tvec = 0:dt:T;
+steps = length(tvec);
+
+max_range = 10;
+
+A = [1 0 dt 0;
+     0 1 0 dt;
+     0 0 1 0;
+     0 0 0 1];
+
+B = [0.5*dt^2 0;
+     0 0.5*dt^2;
+     dt 0;
+     0 dt];
+
+H_vel = [0 0 1 0;
+         0 0 0 1];
+
+sigma_process = 0.05;
+sigma_vel = 0.002;
+
+Q = sigma_process^2 * ...
+    [dt^4/4 0 dt^3/2 0;
+     0 dt^4/4 0 dt^3/2;
+     dt^3/2 0 dt^2 0;
+     0 dt^3/2 0 dt^2];
+
+%% initializations
+wpts = cell(1,num_uavs);
+tpts = cell(1,num_uavs);
+
+pos_true = cell(1,num_uavs);
+vel_true = cell(1,num_uavs);
+acc_true = cell(1,num_uavs);
+
+x_est = cell(1,num_uavs);
+mu_pred = cell(1,num_uavs);
+P_pred = cell(1,num_uavs);
+
+x_true_state = cell(1,num_uavs);   % NEW: stochastic true state
+
+traceP = zeros(num_uavs, steps);
+
+%% trajectories (reference only)
+wpts{1,1} = [0 10 20;
+             0 10 0];
+
+wpts{1,2} = [10 0 10;
+             10 5 5];
+
+wpts{1,3} = [5 15 10;
+             5 5 0];
+
+for i=1:num_uavs
+    tpts{i} = [0 0.5*T T];
+end
+
+%% nominal trajectories (used as control reference)
+for i = 1:num_uavs
+    [pos_true{i}, vel_true{i}, acc_true{i}] = minjerkpolytraj(wpts{i}, tpts{i}, steps);
+end
+
+%% initial conditions
+for i = 1:num_uavs
+    x_est{i}(:,1) = [pos_true{i}(:,1); vel_true{i}(:,1)];
+
+    mu_pred{i}(:,1) = x_est{i}(:,1);
+    P_pred{i} = 0.1 * eye(4);
+
+    x_true_state{i}(:,1) = x_est{i}(:,1);   % TRUE system starts here
+end
+
+%% simulation
+for k = 2:steps
+    for i = 1:num_uavs
+
+        u = acc_true{i}(:,k-1);
+
+        %% =========================
+        %% TRUE DYNAMICS (NOW NOISY)
+        %% =========================
+        w = mvnrnd([0 0 0 0], Q).';
+        x_true_state{i}(:,k) = A*x_true_state{i}(:,k-1) + B*u + w;
+
+        true_vel = x_true_state{i}(3:4,k);
+
+        %% sensor measurement (velocity)
+        R_vel = sigma_vel^2 * eye(2);
+        vel_measured = true_vel + mvnrnd([0 0], R_vel).';
+
+        %% =========================
+        %% SPAWN FILTER
+        %% =========================
+
+        P_old = P_pred{i};
+        mu_old = mu_pred{i}(:,k-1);
+
+        % prediction
+        mu_new = A*mu_old + B*u;
+        P_new  = A*P_old*A' + Q;
+
+        % % motion factor (information form)
+        % Lambda_m = inv(P_old);
+        % eta_m = Lambda_m * mu_old;
+        % 
+        % % likelihood factor
+        % R = R_vel;
+        % 
+        % Lambda_l = H_vel' * (inv(R)) * H_vel;
+        % eta_l = H_vel' * (inv(R)) * vel_measured;
+        % 
+        % % SPAWN fusion
+        % Lambda = Lambda_m + Lambda_l;
+        % eta = eta_m + eta_l;
+        % 
+        % P_new = inv(Lambda);
+        % mu_new = P_new * eta;
+
+        mu_pred{i}(:,k) = mu_new;
+        P_pred{i} = P_new;
+
+        traceP(i,k) = trace(P_new);
+    end
+end
+
+%% plot trajectories
+RGB = orderedcolors("gem");
+
+figure; hold on; grid on;
+
+for i = 1:num_uavs
+    plot(pos_true{i}(1,:), pos_true{i}(2,:), '--', 'Color', RGB(i,:), 'LineWidth', 2)
+    plot(mu_pred{i}(1,:), mu_pred{i}(2,:), '-', 'Color', RGB(i,:), 'LineWidth', 2)
+end
+
+xlabel('x'); ylabel('y');
+legend('Ref 1','Est 1','Ref 2','Est 2','Ref 3','Est 3');
+
+%% covariance evolution
+figure;
+plot(tvec, traceP');
+xlabel('time');
+ylabel('trace(P)');
+title('Covariance evolution (SPAWN)');
+grid on;

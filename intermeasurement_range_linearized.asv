@@ -1,0 +1,14 @@
+function [outputArg1,outputArg2] = intermeasurement_range_linearized(mu_j, Pj, mu_i, P_i, sigma_range, range_measurement)
+z = range_measured;
+R = float(range_var)
+
+H = [1 0 0 0;
+      0 1 0 0];
+
+A = ((H * (mu_j-mu_i)).' * H) / norm(H * (mu_j-mu_i))
+z_tilde = z - np.linalg.norm(H * (mu_j-mu_i)) - A @ mu_i
+cov = A @ P_j @A.T + R
+
+_lambda = A.T @ np.linalg.inv(cov) @ A
+_eta = -A.T @ np.linalg.inv(cov) @ z_tilde
+end

@@ -1,0 +1,275 @@
+load("true_acc_global.mat");
+load("x_true_state_global.mat");
+load("sim_data_sim1.mat");
+
+sim_parameters = [0, 10, 20, 2];
+lidar_activated = sim_parameters(1);
+num_spawn_iter = sim_parameters(2);
+lidar_range = sim_parameters(3);                     % detection range lidar (m)
+lidar_interval = sim_parameters(4);         
+gps_activated = 0;
+gps_interval = 10;
+
+%% simulation parameters
+T = sim_data(1);
+dt_sim = sim_data(2);                            % simulation time step (s)
+num_uavs = sim_data(3);
+
+tvec_sim = 0:dt_sim:T;
+steps_sim = length(tvec_sim);
+
+dt = 0.1; %simulation step
+tvec = 0:dt:T;
+steps = length(tvec);
+
+A = [1 0 dt 0;
+    0 1 0 dt;
+    0 0 1 0;
+    0 0 0 1];
+
+B = [0.5*dt^2 0;
+    0 0.5*dt^2;
+    dt 0;
+    0 dt];
+
+H_gps = [1 0 0 0;
+        0 1 0 0];
+
+H_vel = [0 0 1 0;
+        0 0 0 1];
+
+Hi = [-1 0 0 0;
+     0 -1 0 0];
+
+Hj = [1 0 0 0;
+      0 1 0 0];
+
+sigma_gps = 2;
+gps_noise = sigma_gps^2 * eye(2);
+gps_cov = gps_noise;
+
+sigma_lidar = 100;                          % %measurement noise lidar
+L_noise = sigma_lidar^2 * eye(2);
+L_cov = 1^2 * eye(2);
+
+sigma_vel =  0.2;                            % measurement noise velocity
+V_noise = sigma_vel^2 * eye(2);
+V_cov = V_noise;
+
+sigma_process = 0.2;                        % motion model
+Q_cov = sigma_process^2 * eye(4);
+
+sigma_a = 0.1;                                % noise added to acceleration; 
+A_noise = sigma_a^2 * eye(2);
+
+P_0 = 2 * eye(4);                           % initial state covariance
+
+% A_noise = zeros(2);
+% Q_cov = zeros(4);
+%% initializations
+z_lidar_true = cell(num_uavs, num_uavs);
+lidar_points = cell(1, num_uavs);
+
+x_est = cell(1, num_uavs);
+for i = 1:num_uavs
+    % initialize state estimate matrix with 0
+    mu_pred{i} = zeros(4, steps);
+    P_pred{i} = zeros(4, 4);
+    %lidar_points{i} = zeros(2,1);
+
+end
+
+%% INI
+num_mc = 10;
+mean_errors_mc = zeros(num_mc,1);
+
+for mc = 1:num_mc
+    rng(mc);
+    mu_pred = cell(1, num_uavs);
+    P_pred  = cell(1, num_uavs);
+    traceP  = zeros(num_uavs, steps);
+    pos_error = cell(1, num_uavs);
+    mu_local = cell(1,num_uavs);
+    P_local  = cell(1,num_uavs);
+    mu_spawn = cell(1,num_uavs);
+    p_spawn  = cell(1,num_uavs);
+    lidar_points = cell(1, num_uavs);
+
+    for i = 1:num_uavs
+        mu_pred{i} = zeros(4, steps);
+        P_pred{i}  = zeros(4, 4);
+    
+        mu_pred{i}(:,1) = [x_true_state_global{i}(1:2,1);0 ;0]; %+ [5*(i-1);5*(i-1);0;0]
+        P_pred{i} = P_0;
+    
+        traceP(i,1) = trace(P_pred{i});
+    end
+
+    for k = 2:1:(steps)
+        index = floor((k-1)*dt / dt_sim) + 1;
+
+        for i = 1:num_uavs        
+    
+            P_old = P_pred{i};
+            mu_old = mu_pred{i}(:,k-1);
+    
+            % add noise to acceleration
+            u_measured = true_acc_global{i}(1:2,index) + mvnrnd([0 0], A_noise).';  
+    
+            %u = acc_true{i}(:,(k*10)-19);  
+            true_vel = x_true_state_global{i}(3:4,index);
+    
+            % get measurement of velocity with noise
+            vel_measured = true_vel + mvnrnd([0 0], V_noise).';
+
+            %u = acc_true{i}(:,(k*10)-19);  
+            true_pos = x_true_state_global{i}(1:2,index);
+            
+            % get measurement of velocity with noise
+            gps_measured = true_pos + mvnrnd([0 0], gps_noise).';
+            
+            if rem(k,(gps_interval/dt)) == 0 && gps_activated == 1 && i == 2
+                add_gps_measure = 1;
+            else
+                add_gps_measure = 0;
+            end
+
+            [P_new, mu_new] = prediction_operation(mu_old,P_old, vel_measured, u_measured, A, B, Q_cov, H_vel, V_cov, gps_measured,add_gps_measure);
+            mu_new;
+            P_new;
+            mu_pred{i}(:,k) = mu_new;
+            P_pred{i} = P_new;
+               
+            %store covariance
+            traceP(i,k) = trace(P_pred{i});
+        end
+    
+        %% SPAWN
+    
+        if rem(k,(lidar_interval/dt)) == 0 && lidar_activated == 1      %run only when lidar is active
+            for i = 1:num_uavs
+                % initial beliefs b0
+                mu_local{i} = mu_pred{i}(:,k);
+                P_local{i}  = P_pred{i};
+            
+                % SPAWN beliefs being broadcasted
+                mu_spawn{i} = mu_local{i};
+                p_spawn{i}  = P_local{i};
+            
+            end
+            z_ij = cell(num_uavs, num_uavs);
+            % retrieve lidar measurements 
+            for i = 1:num_uavs
+                for j = 1:num_uavs
+                    if i == j
+                        continue;
+                    end
+    
+                    % if inside lidars range, generate measurement zij
+                    if norm(x_true_state_global{j}(1:2,index) - x_true_state_global{i}(1:2,index)) < lidar_range 
+                         z_ij{i,j} = x_true_state_global{j}(1:2,index) - x_true_state_global{i}(1:2,index) + mvnrnd([0 0], L_noise)';
+                    end
+                end
+            end
+        
+            for iter = 1:num_spawn_iter
+    
+                mu_spawn_new = cell(1,num_uavs);
+                p_spawn_new  = cell(1,num_uavs);
+    
+                for i = 1:num_uavs
+    
+                    % canonical form of initial belief
+                    lambda_i = inv(P_local{i});
+                    eta_i = lambda_i * mu_local{i};
+        
+                    for j = 1:num_uavs
+                        if i == j
+                            continue;
+                        end
+    
+                        if norm(x_true_state_global{j}(1:2, index) - x_true_state_global{i}(1:2, index)) < lidar_range
+                            %lidar_points{i}(:,k) = mu_pred{i}(1:2, k-1);
+                            lidar_points{i} = [lidar_points{i}(:,:),mu_pred{i}(1:2, k-1)];
+                            % neighbors belief
+                            mu_j = mu_spawn{j};
+                            p_j = p_spawn{j};
+            
+                            % marginalize over xj
+                            S_ij = Hj*p_j*Hj' + L_cov;
+        
+                            %z_eq = Hj*mu_j - z_ij{i,j};
+                            z_eq = z_ij{i,j} - Hj*mu_j;
+            
+                            % convert to canonical form
+                            lambda_meas = Hi' * inv(S_ij) * Hi;
+                            eta_meas    = Hi' * inv(S_ij) * z_eq;
+            
+                            % fusion
+                            lambda_i = lambda_i + lambda_meas;
+                            eta_i = eta_i + eta_meas;
+                        end
+                    end
+                    % store new beliefs to change when the iteration is over
+                    p_spawn_new{i} = inv(lambda_i);
+                    mu_spawn_new{i} = p_spawn_new{i} * eta_i;
+            
+                end
+                % synchronous update of beliefs
+                mu_spawn = mu_spawn_new;
+                p_spawn  = p_spawn_new;
+            
+            end
+            % store beliefs for next time step
+            for i = 1:num_uavs
+                mu_pred{i}(:,k) = mu_spawn{i};
+                P_pred{i}       = p_spawn{i};
+                traceP(i,k) = trace(P_pred{i});
+          
+            end
+        end
+    
+        for i = 1:num_uavs
+            pos_error{i}(:, k) = mu_pred{i}(1:2,k) - x_true_state_global{i}(1:2, index);
+        end
+    end
+    
+    error_total = 0;
+
+    for i = 1:num_uavs
+        for t = 1:k
+            error_total = error_total + norm(pos_error{i}(:,t));
+        end
+    end
+
+    mean_errors_mc(mc) = error_total / (num_uavs * k);
+    
+    % mean_error = error_total/(num_uavs*k)
+end
+
+mean_error = mean(mean_errors_mc)
+std_error  = std(mean_errors_mc);
+
+disp(mean_error);
+
+%% plot other thing
+RGB = orderedcolors("gem"); 
+color_array = {'r','m','b'};
+figure; hold on; grid on;
+
+for i = 1:num_uavs
+    plot(x_true_state_global{i}(1,1:(steps_sim)), x_true_state_global{i}(2,1:(steps_sim)),'Color', RGB(i,:), 'LineStyle','--', 'LineWidth',2)
+    plot(mu_pred{i}(1,1:(steps)), mu_pred{i}(2,1:(steps)), '-','Color', RGB(i,:), 'LineWidth',2)
+    %plot(lidar_points{i}(1,:), lidar_points{i}(2,:), 'o','Color', RGB(i,:), 'LineWidth',2)
+end
+
+xlabel('x')
+ylabel('y')
+legend('Ref 1','Est 1','Ref 2','Est 2','Ref 3','Est 3')
+
+figure
+plot(tvec, traceP')
+xlabel('time')
+ylabel('trace(P)')
+title('Covariance')
+grid on
