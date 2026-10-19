@@ -26,7 +26,7 @@ kk = 2;                                                                       %s
 % gps on? 0 - no, 1 - yes
 % warm start - 0, cold start - 1
 
-spawn_parameters = [2, 3, 0, 1, 1];
+spawn_parameters = [2, 3, 1, 1, 0];
 
 % particles
 inter_samples = 500;
@@ -145,7 +145,7 @@ lidar_points = cell(1, num_uavs);
 x_est = cell(1, num_uavs);
 
 %% Initial beliefs
-num_mc = 1;
+num_mc = 5;
 
 mean_errors_mc = zeros(num_mc, 1);
 mean_errors_per_drone_mc = zeros(num_mc, num_uavs);
@@ -223,6 +223,7 @@ for mc = 1:num_mc
                 belief_old = bel_agents{i};
                 [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles(belief_old, theta_measured{i}, sigma_theta, vel_measured, u_measured, A, B, Q_cov, V_cov, gps_measured, add_gps_measure, gps_cov);
                 [mu_pred{i}(:,k), P_pred{i}] = belief_estimate(bel_agents{i});
+                broadcasted_message{i} = intrasamples_to_intersamples(bel_agents{i}, inter_samples);
             else
                 P_old = P_pred{i};
                 mu_old = mu_pred{i}(:,k-1);
@@ -337,11 +338,13 @@ for mc = 1:num_mc
                     if particles
                         % SPAWN iterations - Particles
                         pred_bel_agents = bel_agents;          % freeze the prior, like mu_local
-                        broadcasted_message{i}
+                      
                         for f = 1:num_spawn_iter
                             a = 0;
                             b = 0;
                             old_bel_agents = bel_agents; 
+                            old_broadcast = broadcasted_message;        % frozen for this iteration
+                            new_broadcast = cell(1, number_agents);
                             for i = 1:1:number_agents                                                %for each agente, in this case only one
                                 a = 0;
                                 b = 0;
@@ -366,16 +369,23 @@ for mc = 1:num_mc
                                         end
                                         if ~isempty(z_range{i,j}) && old_bel_agents{j}(1,6) ~= 0 %its a neighbor! and they ahve information 
                                             a = a + 1;
-                                            message_agent{a} = compute_message(broadcasted_message{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
+                                            message_agent{a} = compute_message(old_broadcast{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
                                         end
                                     end
                                     message_anchor = [message_anchor, message_agent];
                                 end
-                                [new_result, ess, new_message] = product_messages(f, pred_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
+                                [new_result, new_message] = product_messages(f, pred_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
                                 new_bel_agents{i} = new_result;
-                                broadcasted_message{i} = new_message;
+                                new_broadcast{i} = new_message;
                             end
                             bel_agents = new_bel_agents;
+                            broadcasted_message = new_broadcast;
+
+                            % Synchronous update
+                            for i_
+                            [mu__, P__, sigma__] = belief_estimate(bel_agents{i});
+                            mu_spawn = mu_spawn_new;
+                            p_spawn  = p_spawn_new;
                         end
 
                     else

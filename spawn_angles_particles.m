@@ -26,12 +26,12 @@ kk = 2;                                                                       %s
 % gps on? 0 - no, 1 - yes
 % warm start - 0, cold start - 1
 
-spawn_parameters = [2, 3, 0, 1, 0];
+spawn_parameters = [2, 3, 1, 1, 1];
 
 % particles
-inter_samples = 500;
-intra_samples = 2000;
-particle_h = 0.2;
+inter_samples = 250;
+intra_samples = 1000;
+particle_h = 0.3;
 
 % measurement noise velocity
 velocity_std = 0.4; 
@@ -145,7 +145,7 @@ lidar_points = cell(1, num_uavs);
 x_est = cell(1, num_uavs);
 
 %% Initial beliefs
-num_mc = 5;
+num_mc = 20;
 
 mean_errors_mc = zeros(num_mc, 1);
 mean_errors_per_drone_mc = zeros(num_mc, num_uavs);
@@ -343,6 +343,8 @@ for mc = 1:num_mc
                             a = 0;
                             b = 0;
                             old_bel_agents = bel_agents; 
+                            old_broadcast = broadcasted_message;        % frozen for this iteration
+                            new_broadcast = cell(1, number_agents);
                             for i = 1:1:number_agents                                                %for each agente, in this case only one
                                 a = 0;
                                 b = 0;
@@ -367,16 +369,23 @@ for mc = 1:num_mc
                                         end
                                         if ~isempty(z_range{i,j}) && old_bel_agents{j}(1,6) ~= 0 %its a neighbor! and they ahve information 
                                             a = a + 1;
-                                            message_agent{a} = compute_message(broadcasted_message{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
+                                            message_agent{a} = compute_message(old_broadcast{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
                                         end
                                     end
                                     message_anchor = [message_anchor, message_agent];
                                 end
                                 [new_result, new_message] = product_messages(f, pred_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
                                 new_bel_agents{i} = new_result;
-                                broadcasted_message{i} = new_message;
+                                new_broadcast{i} = new_message;
                             end
                             bel_agents = new_bel_agents;
+                            broadcasted_message = new_broadcast;
+
+                            % Synchronous update
+                            for i=1:num_uavs
+                                [mu_spawn{i}, p_spawn{i}, sigma__] = belief_estimate(bel_agents{i});
+                            end
+
                         end
 
                     else
