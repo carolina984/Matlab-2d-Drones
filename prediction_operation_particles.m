@@ -105,5 +105,9 @@ end
 
 ess = 1 / sum(w.^2);
 
-belief = [X, w, belief(:, 6)];
+% belief = [X, w, belief(:, 6)];
+
+idx = randsample(N, N, true, w);
+X   = X(idx, :);
+belief = [X, ones(N,1)/N, belief(idx, 6)];
 end

@@ -15,7 +15,7 @@ a = 0;
 b = 0;
 
 
-kk = 1;                                                                       %sampling constant
+kk = 2;                                                                       %sampling constant
 
 
 %% Simulation Selection 
@@ -26,11 +26,11 @@ kk = 1;                                                                       %s
 % gps on? 0 - no, 1 - yes
 % warm start - 0, cold start - 1
 
-spawn_parameters = [2, 3, 1, 1, 0];
+spawn_parameters = [2, 3, 0, 1, 1];
 
 % particles
-inter_samples = 750;
-intra_samples = 3000;
+inter_samples = 500;
+intra_samples = 2000;
 particle_h = 0.2;
 
 % measurement noise velocity
@@ -41,7 +41,7 @@ measurement_interval = 2;
 
 % range
 range_d_max = 30;
-range_std = 0.1;
+range_std = 0.3;
 
 % lidar
 lidar_d_max = 30;               % detection range lidar (m)
@@ -336,7 +336,8 @@ for mc = 1:num_mc
 
                     if particles
                         % SPAWN iterations - Particles
-                        
+                        pred_bel_agents = bel_agents;          % freeze the prior, like mu_local
+                        broadcasted_message{i}
                         for f = 1:num_spawn_iter
                             a = 0;
                             b = 0;
@@ -365,13 +366,14 @@ for mc = 1:num_mc
                                         end
                                         if ~isempty(z_range{i,j}) && old_bel_agents{j}(1,6) ~= 0 %its a neighbor! and they ahve information 
                                             a = a + 1;
-                                            message_agent{a} = compute_message(old_bel_agents{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
+                                            message_agent{a} = compute_message(broadcasted_message{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
                                         end
                                     end
                                     message_anchor = [message_anchor, message_agent];
                                 end
-                                new_result = product_messages(f, old_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
+                                [new_result, ess, new_message] = product_messages(f, pred_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
                                 new_bel_agents{i} = new_result;
+                                broadcasted_message{i} = new_message;
                             end
                             bel_agents = new_bel_agents;
                         end

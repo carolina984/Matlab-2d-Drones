@@ -64,7 +64,7 @@
 % end
 % end
 
-function [samples_kept, ess] = product_messages(iteration_number, current_belief, messages, intranode_sample, internode_samples, k, M, h)
+function [samples_kept, broadcasted_message] = product_messages(iteration_number, current_belief, messages, intranode_sample, internode_samples, k, M, h)
 % PRODUCT_MESSAGES  SPAWN correction: prediction x position-only messages.
 %
 % This is your function with the prediction put back in. Everything that
@@ -139,27 +139,6 @@ else
 
     w_total = v_pred .* prod_v ./ sum_v;
 
-    % ---- NEW 2: guard the product against underflow ---------------------
-    % exp(-d^2/(2h^2)) is exactly zero in double precision past
-    % d = h*sqrt(2*709) = 11.3 m at h = 0.3, and this is now a product of
-    % THREE such densities. An all-zero weight vector is what makes
-    % randsample refuse. Fall back to the prediction rather than crash:
-    % "no usable information this step" is the honest Bayesian answer.
-    % w_total(~isfinite(w_total)) = 0;
-    % if sum(w_total) <= 0
-    %     warning('product_messages:underflow', ...
-    %             ['All %d candidate weights underflowed at h = %.2f. The ' ...
-    %              'rings and the prediction have no overlap wider than ' ...
-    %              '%.1f m. Returning the prediction unchanged. If this ' ...
-    %              'fires often, move the weights into logs.'], ...
-    %             numel(w_total), h, h*sqrt(2*709));
-    %     samples_kept = current_belief;
-    %     wn  = current_belief(:,5) / sum(current_belief(:,5));
-    %     ess = 1 / sum(wn.^2);
-    %     return
-    % end
-    % 
-    % ess = 1 / sum((w_total/sum(w_total)).^2);
 
     % ---- NEW 3: give every candidate a velocity -------------------------
     % Drawn from the prediction by weight. This MUST come after the
@@ -178,5 +157,7 @@ else
     samples_kept = samples_drawn_total(w, :);
     samples_kept(:, 5) = 1/intranode_sample;
     samples_kept(:, 6) = 1;
+
+    broadcasted_message = intrasamples_to_intersamples(samples_kept, internode_samples);
 end
 end
