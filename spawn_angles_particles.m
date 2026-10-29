@@ -26,21 +26,21 @@ kk = 2;                                                                       %s
 % gps on? 0 - no, 1 - yes
 % warm start - 0, cold start - 1
 
-spawn_parameters = [2, 3, 1, 1, 1];
+spawn_parameters = [2, 3, 1, 1, 0];
 
 % particles
 inter_samples = 250;
 intra_samples = 1000;
-particle_h = 0.3;
+particle_h = 5;
 
 % measurement noise velocity
-velocity_std = 0.4; 
+velocity_std = 0.2; 
 
 % measurements
 measurement_interval = 2;
 
 % range
-range_d_max = 30;
+range_d_max = 100;
 range_std = 0.3;
 
 % lidar
@@ -48,7 +48,7 @@ lidar_d_max = 30;               % detection range lidar (m)
 lidar_std = 0.1;
 
 % gps
-gps_interval = 5;
+gps_interval = 2;
 gps_std = 2;
 
 
@@ -122,17 +122,17 @@ L_cov = L_noise;
 V_noise = velocity_std^2 * eye(2);
 V_cov = V_noise;
 
-sigma_process = 0.3;            % motion model
+sigma_process = 0.01;            % motion model
 Q_cov = sigma_process^2 * eye(4);
 
 sigma_a = 0.3;                  % noise added to acceleration; 
 A_noise = sigma_a^2 * eye(2);
 
 if cold_start
-    p_pos_0 = 10.0;             % initial position sd [m]
+    p_pos_0 = 5.0;             % initial position sd [m]
     p_vel_0 = 1.0;              % initial velocity sd [m/s]
 else
-    p_pos_0 = 1.0;              % initial position sd [m]
+    p_pos_0 = 1;              % initial position sd [m]
     p_vel_0 = 1.0;              % initial velocity sd [m/s]
 end
 
@@ -145,13 +145,13 @@ lidar_points = cell(1, num_uavs);
 x_est = cell(1, num_uavs);
 
 %% Initial beliefs
-num_mc = 20;
+num_mc = 1;
 
 mean_errors_mc = zeros(num_mc, 1);
 mean_errors_per_drone_mc = zeros(num_mc, num_uavs);
 
 for mc = 1:num_mc
-    rng(mc);
+    rng(2);
     mu_pred = cell(1, num_uavs);
     theta_measured = cell(1, num_uavs);
     P_pred  = cell(1, num_uavs);
@@ -171,6 +171,10 @@ for mc = 1:num_mc
 
         if particles
             bel_agents{i} = gaussian_belief(x_true_state_global{i}(1:4,1) + e_0, P_0, intra_samples);
+
+            % figure;
+            % plot_belief(bel_agents{i}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{i}(1:2,1));
+              
             
             [mu0, P0_est] = belief_estimate(bel_agents{i});
             mu_pred{i}(:,1) = mu0(:);
@@ -188,7 +192,7 @@ for mc = 1:num_mc
         pos_error{i}(:,1) = mu_pred{i}(1:2,1) - x_true_state_global{i}(1:2,1);
     end
 
-    for k = 2:1:(steps)
+    for k = 2:1:2 %(steps)
         index = floor((k-1)*dt / dt_sim) + 1;
 
         % Run initial Kalman like Update
@@ -224,6 +228,13 @@ for mc = 1:num_mc
                 [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles(belief_old, theta_measured{i}, sigma_theta, vel_measured, u_measured, A, B, Q_cov, V_cov, gps_measured, add_gps_measure, gps_cov);
                 [mu_pred{i}(:,k), P_pred{i}] = belief_estimate(bel_agents{i});
                 broadcasted_message{i} = intrasamples_to_intersamples(bel_agents{i}, inter_samples);
+
+                figure;
+                plot_belief(bel_agents{1}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{1}(1:2,index));
+                figure;
+                plot_belief(bel_agents{2}, particle_h, sprintf('drone 2, k = %d', k), x_true_state_global{2}(1:2,index));
+                figure;
+                plot_belief(bel_agents{3}, particle_h, sprintf('drone 3, k = %d', k), x_true_state_global{3}(1:2,index));
             else
                 P_old = P_pred{i};
                 mu_old = mu_pred{i}(:,k-1);
@@ -345,12 +356,20 @@ for mc = 1:num_mc
                             old_bel_agents = bel_agents; 
                             old_broadcast = broadcasted_message;        % frozen for this iteration
                             new_broadcast = cell(1, number_agents);
+
+                            figure;
+                            plot_belief(bel_agents{1}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{1}(1:2,index));
+                            figure;
+                            plot_belief(bel_agents{2}, particle_h, sprintf('drone 2, k = %d', k), x_true_state_global{2}(1:2,index));
+                            figure;
+                            plot_belief(bel_agents{3}, particle_h, sprintf('drone 3, k = %d', k), x_true_state_global{3}(1:2,index));
+
                             for i = 1:1:number_agents                                                %for each agente, in this case only one
                                 a = 0;
                                 b = 0;
                                 message_agent  = {};                                                 % add these two lines
                                 message_anchor = {};
-                           
+                                
                                 % for j = 1:1:number_anchors
                                 %     if i == j
                                 %         continue;
@@ -370,6 +389,8 @@ for mc = 1:num_mc
                                         if ~isempty(z_range{i,j}) && old_bel_agents{j}(1,6) ~= 0 %its a neighbor! and they ahve information 
                                             a = a + 1;
                                             message_agent{a} = compute_message(old_broadcast{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
+                                            figure;
+                                            plot_belief(message_agent{a}, particle_h, sprintf('message, k = %d', k), x_true_state_global{i}(1:2,index));
                                         end
                                     end
                                     message_anchor = [message_anchor, message_agent];
@@ -384,6 +405,12 @@ for mc = 1:num_mc
                             % Synchronous update
                             for i=1:num_uavs
                                 [mu_spawn{i}, p_spawn{i}, sigma__] = belief_estimate(bel_agents{i});
+                                figure;
+                                plot_belief(bel_agents{1}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{1}(1:2,index));
+                                figure;
+                                plot_belief(bel_agents{2}, particle_h, sprintf('drone 2, k = %d', k), x_true_state_global{1}(1:2,index));
+                                figure;
+                                plot_belief(bel_agents{2}, particle_h, sprintf('drone 3, k = %d', k), x_true_state_global{1}(1:2,index));
                             end
 
                         end

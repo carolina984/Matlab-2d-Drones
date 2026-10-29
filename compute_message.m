@@ -2,7 +2,7 @@ function [message] = compute_message(neighbor_belief_intersamples, internode_sam
 % Neighbor belief: [x y vx vy weight flag]
 % Estrutura da mensagem: [x y weight flag]
 
-ratio_samples  = intranode_samples/internode_samples;
+ratio_samples  = intranode_samples/internode_samples; %intranode_samples/internode_samples;
 neighbor_belief_intersamples = repmat(neighbor_belief_intersamples,ratio_samples,1);
 
 message = zeros(intranode_samples, 4);

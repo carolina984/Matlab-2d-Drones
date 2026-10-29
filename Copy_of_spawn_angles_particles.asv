@@ -1,5 +1,7 @@
 clear
 
+% load("lawmower.mat");
+
 load("true_acc_local.mat");
 load("true_acc_global.mat");
 
@@ -17,6 +19,8 @@ b = 0;
 
 kk = 2;                                                                       %sampling constant
 
+debug_steps = [4 80];
+
 
 %% Simulation Selection 
 
@@ -29,18 +33,18 @@ kk = 2;                                                                       %s
 spawn_parameters = [2, 3, 1, 1, 0];
 
 % particles
-inter_samples = 500;
-intra_samples = 2000;
-particle_h = 0.2;
+inter_samples = 400;
+intra_samples = 1600;
+particle_h = 1;
 
 % measurement noise velocity
-velocity_std = 0.4; 
+velocity_std = 0.2; 
 
 % measurements
 measurement_interval = 2;
 
 % range
-range_d_max = 30;
+range_d_max = 100;
 range_std = 0.3;
 
 % lidar
@@ -48,8 +52,8 @@ lidar_d_max = 30;               % detection range lidar (m)
 lidar_std = 0.1;
 
 % gps
-gps_interval = 5;
-gps_std = 2;
+gps_interval = 2;
+gps_std = 0.02;
 
 
 %% Extract Data - Aux
@@ -122,18 +126,18 @@ L_cov = L_noise;
 V_noise = velocity_std^2 * eye(2);
 V_cov = V_noise;
 
-sigma_process = 0.3;            % motion model
+sigma_process = 0.02;            % motion model
 Q_cov = sigma_process^2 * eye(4);
 
-sigma_a = 0.3;                  % noise added to acceleration; 
+sigma_a = 0.02;                  % noise added to acceleration; 
 A_noise = sigma_a^2 * eye(2);
 
 if cold_start
-    p_pos_0 = 10.0;             % initial position sd [m]
-    p_vel_0 = 1.0;              % initial velocity sd [m/s]
+    p_pos_0 = 5.0;             % initial position sd [m]
+    p_vel_0 = 0.001;              % initial velocity sd [m/s]
 else
-    p_pos_0 = 1.0;              % initial position sd [m]
-    p_vel_0 = 1.0;              % initial velocity sd [m/s]
+    p_pos_0 = 0.01;              % initial position sd [m]
+    p_vel_0 = 0.01;              % initial velocity sd [m/s]
 end
 
 P_0 = diag([p_pos_0^2, p_pos_0^2, p_vel_0^2, p_vel_0^2]);
@@ -145,13 +149,13 @@ lidar_points = cell(1, num_uavs);
 x_est = cell(1, num_uavs);
 
 %% Initial beliefs
-num_mc = 5;
+num_mc = 1;
 
 mean_errors_mc = zeros(num_mc, 1);
 mean_errors_per_drone_mc = zeros(num_mc, num_uavs);
 
 for mc = 1:num_mc
-    rng(mc);
+    rng(3);
     mu_pred = cell(1, num_uavs);
     theta_measured = cell(1, num_uavs);
     P_pred  = cell(1, num_uavs);
@@ -171,6 +175,10 @@ for mc = 1:num_mc
 
         if particles
             bel_agents{i} = gaussian_belief(x_true_state_global{i}(1:4,1) + e_0, P_0, intra_samples);
+
+            % figure;
+            % plot_belief(bel_agents{i}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{i}(1:2,1));
+
             
             [mu0, P0_est] = belief_estimate(bel_agents{i});
             mu_pred{i}(:,1) = mu0(:);
@@ -188,7 +196,7 @@ for mc = 1:num_mc
         pos_error{i}(:,1) = mu_pred{i}(1:2,1) - x_true_state_global{i}(1:2,1);
     end
 
-    for k = 2:1:(steps)
+    for k = 2:1:100 %(steps)
         index = floor((k-1)*dt / dt_sim) + 1;
 
         % Run initial Kalman like Update
@@ -224,6 +232,13 @@ for mc = 1:num_mc
                 [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles(belief_old, theta_measured{i}, sigma_theta, vel_measured, u_measured, A, B, Q_cov, V_cov, gps_measured, add_gps_measure, gps_cov);
                 [mu_pred{i}(:,k), P_pred{i}] = belief_estimate(bel_agents{i});
                 broadcasted_message{i} = intrasamples_to_intersamples(bel_agents{i}, inter_samples);
+
+            %     figure;
+            %     plot_belief(bel_agents{1}, particle_h, sprintf('drone 1, k = %d', k), x_true_state_global{1}(1:2,index));
+            %     figure;
+            %     plot_belief(bel_agents{2}, particle_h, sprintf('drone 2, k = %d', k), x_true_state_global{2}(1:2,index));
+            %     figure;
+            %     plot_belief(bel_agents{3}, particle_h, sprintf('drone 3, k = %d', k), x_true_state_global{3}(1:2,index));
             else
                 P_old = P_pred{i};
                 mu_old = mu_pred{i}(:,k-1);
@@ -335,59 +350,109 @@ for mc = 1:num_mc
                         end
                     end
 
+                    % =====================================================================
+                    % REPLACEMENT FOR THE PARTICLE BRANCH OF case 2, WITH DIAGNOSTICS
+                    %
+                    % Three edits to make elsewhere first:
+                    %
+                    %  1) In the config block near the top, add:
+                    %
+                    %         debug_steps = [4 8];     % which k to draw. [] = none.
+                    %                                  % SPAWN only runs when
+                    %                                  % rem(k, measurement_interval/dt) == 0,
+                    %                                  % so with dt = 0.5 and interval 2 the
+                    %                                  % live steps are k = 4, 8, 12, ...
+                    %
+                    %  2) DELETE the plot_belief calls at the old lines 175-177. They use `k`
+                    %     before the time loop has started, so `k` is undefined there.
+                    %
+                    %  3) DELETE the three plot_belief calls inside the predict loop (old
+                    %     lines 232-237). They sat inside `for i`, so they redrew all three
+                    %     drones once per drone -- nine figures per time step. The prediction
+                    %     is captured as row 1 below instead.
+                    %
+                    % What you get: ONE figure per debugged step. Columns are drones, rows
+                    % are stages. Read DOWN a column to follow one drone through the
+                    % correction; read ACROSS a row to see all three at the same stage.
+                    % =====================================================================
+
                     if particles
-                        % SPAWN iterations - Particles
-                        pred_bel_agents = bel_agents;          % freeze the prior, like mu_local
-                      
-                        for f = 1:num_spawn_iter
-                            a = 0;
-                            b = 0;
-                            old_bel_agents = bel_agents; 
-                            old_broadcast = broadcasted_message;        % frozen for this iteration
-                            new_broadcast = cell(1, number_agents);
-                            for i = 1:1:number_agents                                                %for each agente, in this case only one
-                                a = 0;
-                                b = 0;
-                                message_agent  = {};                                                 % add these two lines
-                                message_anchor = {};
-                           
-                                % for j = 1:1:number_anchors
-                                %     if i == j
-                                %         continue;
-                                %     end
-                                % 
-                                %     range_to_anchors(i, j)
-                                %     b = b + 1;
-                                %     message_anchor{b} = compute_message(bel_anchors{j}, inter_samples, intra_samples, z_range{i,j}, 0.1);
-                                % 
-                                % end
-                                
-                                if f>0
-                                    for j = 1:number_agents
-                                        if i == j
-                                            continue;
-                                        end
-                                        if ~isempty(z_range{i,j}) && old_bel_agents{j}(1,6) ~= 0 %its a neighbor! and they ahve information 
-                                            a = a + 1;
-                                            message_agent{a} = compute_message(old_broadcast{j}, inter_samples, intra_samples, z_range{i,j}, range_std);
-                                        end
-                                    end
-                                    message_anchor = [message_anchor, message_agent];
-                                end
-                                [new_result, new_message] = product_messages(f, pred_bel_agents{i}, message_anchor, intra_samples, inter_samples, kk, intra_samples, particle_h);
-                                new_bel_agents{i} = new_result;
-                                new_broadcast{i} = new_message;
+                        % --- freeze the prior: Alg. 3 line 2, b^(0) = the prediction --------
+                        pred_bel_agents = bel_agents;
+                    
+                        % --- set up this step's diagnostic snapshot -------------------------
+                        do_debug = ismember(k, debug_steps);
+                        if do_debug
+                            truths = zeros(2, num_uavs);
+                            for i = 1:num_uavs
+                                truths(:,i) = x_true_state_global{i}(1:2, index);
                             end
-                            bel_agents = new_bel_agents;
-                            broadcasted_message = new_broadcast;
-
-                            % Synchronous update
-                            for i_
-                            [mu__, P__, sigma__] = belief_estimate(bel_agents{i});
-                            mu_spawn = mu_spawn_new;
-                            p_spawn  = p_spawn_new;
+                            snap = struct('title', {}, 'sets', {});
+                    
+                            % row 1: what the prediction step left us with
+                            row = cell(1, num_uavs);
+                            for i = 1:num_uavs, row{i} = {bel_agents{i}}; end
+                            snap(end+1) = struct('title', 'after prediction', 'sets', {row});
                         end
-
+                    
+                        for f = 1:num_spawn_iter
+                            old_bel_agents = bel_agents;
+                            old_broadcast  = broadcasted_message;      % frozen for this iteration
+                            new_broadcast  = cell(1, number_agents);
+                            if do_debug, msg_row = cell(1, num_uavs); end
+                    
+                            for i = 1:1:number_agents
+                                message_agent = {};
+                                a = 0;
+                    
+                                for j = 1:number_agents
+                                    if i == j, continue; end
+                                    if isempty(z_range{i,j}), continue; end
+                                    if old_bel_agents{j}(1,6) == 0, continue; end     % no information
+                    
+                                    a = a + 1;
+                                    message_agent{a} = compute_message(old_broadcast{j}, ...
+                                            inter_samples, intra_samples, z_range{i,j}, range_std);
+                                end
+                    
+                                if do_debug, msg_row{i} = message_agent; end
+                    
+                                [new_result, new_message] = product_messages(f, pred_bel_agents{i}, ...
+                                        message_agent, intra_samples, inter_samples, kk, ...
+                                        intra_samples, particle_h);
+                    
+                                new_bel_agents{i} = new_result;
+                                new_broadcast{i}  = new_message;
+                            end
+                    
+                            bel_agents          = new_bel_agents;
+                            broadcasted_message = new_broadcast;
+                    
+                            if do_debug
+                                % row 2 (first iteration only): the incoming rings, before
+                                % they are multiplied together. Each drone's panel shows the
+                                % messages IT received, one colour per neighbour.
+                                if f == 1
+                                    snap(end+1) = struct('title', 'incoming messages', 'sets', {msg_row});
+                                end
+                                % one row per iteration: the belief after the product
+                                row = cell(1, num_uavs);
+                                for i = 1:num_uavs, row{i} = {bel_agents{i}}; end
+                                snap(end+1) = struct('title', sprintf('after SPAWN iter %d', f), ...
+                                                     'sets', {row});
+                            end
+                        end
+                    
+                        % --- write the particle result into the arrays the script reads -----
+                        for i = 1:num_uavs
+                            [mu_spawn{i}, p_spawn{i}] = belief_estimate(bel_agents{i});
+                            mu_spawn{i} = mu_spawn{i}(:);          % belief_estimate returns a row
+                        end
+                    
+                        if do_debug
+                            %plot_spawn_step(snap, particle_h, k, tvec(k), truths);
+                        end
+                    
                     else
                         % SPAWN iterations - No particles
                         for iter = 1:num_spawn_iter
