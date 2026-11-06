@@ -113,6 +113,7 @@ if num_messages == 0
     samples_kept = current_belief;
     wn  = current_belief(:,5) / sum(current_belief(:,5));
     ess = 1 / sum(wn.^2);
+    broadcasted_message = intrasamples_to_intersamples(samples_kept, internode_samples);
 else
     for i = 1:1:(num_messages)
         message = messages{i};

@@ -24,19 +24,19 @@ end
 %% Simulation selection
 % [ measurement type , spawn iterations , particles , gps , start ]
 %   0 none, 1 lidar, 2 range            0 no 1 yes   0 no 1 yes   0 warm 1 cold
-spawn_parameters = [0, 1, 0, 1, 0];
+spawn_parameters = [2, 5, 1, 1, 0];
 
-k_last = 100;                    % last time step of the filter loop
+k_last = 20;                    % last time step of the filter loop
 num_mc = 1;                     % Monte Carlo runs
 
-debug_steps = [4 8];               % which k to draw, e.g. [4 8]. [] = no figures.
+debug_steps = [2 4];               % which k to draw, e.g. [4 8]. [] = no figures.
                                 % SPAWN only runs when rem(k, measurement_interval/dt) == 0,
                                 % so with dt = 0.5 and interval 2 the live steps are 4, 8, 12...
 
 % particles
 inter_samples = 500;
 intra_samples = 2000;
-particle_h    = 0.4;
+particle_h    = 0.3;
 kk            = 2;              % candidate oversampling constant
 
 % measurements
@@ -45,7 +45,7 @@ velocity_std         = 0.2;
 
 % range
 range_d_max = 100;
-range_std   = 0.4;
+range_std   = 0.3;
 
 % lidar
 lidar_d_max = 100;
@@ -53,7 +53,7 @@ lidar_std   = 0.1;
 
 % gps
 gps_interval = 0.5;
-gps_std      = 0.00005;
+gps_std      = 0.3;
 
 %% Extract selection
 measurement_type = spawn_parameters(1);
@@ -102,22 +102,24 @@ B = [0.5*dt^2 0;
 H_vel = [0 0 1 0;
          0 0 0 1];
 
-sigma_theta   = 0.1;
+sigma_theta   = 0.2;
 sigma_process = 0.5;           % motion model
 sigma_a       = 0.02;           % noise added to acceleration
 
 gps_cov = gps_std^2      * eye(2);
+gps_noise = gps_std^2      * eye(2);
+
 L_cov   = lidar_std^2    * eye(2);
 V_cov   = velocity_std^2 * eye(2);
 A_noise = sigma_a^2      * eye(2);
 Q_cov   = sigma_process^2 * eye(4);
 
 if cold_start
-    p_pos_0 = 10.0;              % initial position sd [m]
+    p_pos_0 = 5.0;              % initial position sd [m]
 else
     p_pos_0 = 1.0;
 end
-p_vel_0 = 0.1;                  % initial velocity sd [m/s]
+p_vel_0 = 0.001;                  % initial velocity sd [m/s]
 
 P_0 = diag([p_pos_0^2, p_pos_0^2, p_vel_0^2, p_vel_0^2]);
 
@@ -180,7 +182,7 @@ for mc = 1:num_mc
 
             u_measured   = true_acc_local{i}(1:2,index)      + mvnrnd([0 0], A_noise).';
             vel_measured = true_velocity_local{i}(1:2,index) + mvnrnd([0 0], V_cov).';
-            gps_measured = x_true_state_global{i}(1:2,index) + mvnrnd([0 0], gps_cov).';
+            gps_measured = x_true_state_global{i}(1:2,index) + mvnrnd([0 0], gps_noise).';
 
             add_gps_measure = gps_activated == 1 && i == 2 && ...
                               rem(k, round(gps_interval/dt)) == 0;
@@ -196,7 +198,7 @@ for mc = 1:num_mc
                 [P_pred{i}, mu_pred{i}(:,k)] = prediction_operation_with_angles( ...
                         index, i, mu_pred{i}(:,k-1), P_pred{i}, theta_measured{i}, ...
                         sigma_theta, vel_measured, u_measured, A, B, Q_cov, H_vel, ...
-                        V_cov, gps_measured, add_gps_measure);
+                        V_cov, gps_measured, add_gps_measure, gps_cov);
             end
 
             traceP(i,k) = trace(P_pred{i});

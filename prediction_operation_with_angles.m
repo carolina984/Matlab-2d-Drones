@@ -1,7 +1,5 @@
-function [P_new, mu_new, Rt_] = prediction_operation_with_angles(index, i, mu_old,P_old, theta, sigma_theta, vel_measured, u, A, B, Q, H_vel, V_cov, gps_measured, add_gps)
-    sigma_gps = 2;
-    gps_noise = sigma_gps^2 * eye(2);
-    gps_cov = gps_noise;
+function [P_new, mu_new, Rt_] = prediction_operation_with_angles(index, i, mu_old,P_old, theta, sigma_theta, vel_measured, u, A, B, Q_cov, H_vel, V_cov, gps_measured, add_gps, gps_cov)
+
     H_gps = [1 0 0 0;
         0 1 0 0];
 
@@ -16,11 +14,11 @@ function [P_new, mu_new, Rt_] = prediction_operation_with_angles(index, i, mu_ol
     %P_old  = A*P_old*A' + Q_cov;
     %sigma_a = 0.4;                                % noise added to acceleration; 
     %A_cov = sigma_a^2 * eye(2);
-    sigma_a = 0.1;                                % noise added to acceleration; 
-    A_noise = sigma_a^2 * eye(2);
+    % sigma_a = 0.1;                                % noise added to acceleration; 
+    % A_noise = sigma_a^2 * eye(2);
 
-    sigma_process = 0.2;                        % motion model
-    Q_cov = sigma_process^2 * eye(4);
+    % sigma_process = 0.2;                        % motion model
+    % Q_cov = sigma_process^2 * eye(4);
 
     P_old  = A*P_old*A' + (B*dRt_*u)*sigma_theta^2*(u'*dR_*B') + Q_cov; % (B*dRt_*A_noise'*dR_*B'); 
     %P_0 = 1 * eye(4);
