@@ -24,12 +24,12 @@ end
 %% Simulation selection
 % [ measurement type , spawn iterations , particles , gps , start ]
 %   0 none, 1 lidar, 2 range            0 no 1 yes   0 no 1 yes   0 warm 1 cold
-spawn_parameters = [2, 5, 1, 1, 0];
+spawn_parameters = [2, 0, 1, 0, 0];
 
-k_last = 20;                    % last time step of the filter loop
+k_last = 500;                    % last time step of the filter loop
 num_mc = 1;                     % Monte Carlo runs
 
-debug_steps = [2 4];               % which k to draw, e.g. [4 8]. [] = no figures.
+debug_steps = [4 8];               % which k to draw, e.g. [4 8]. [] = no figures.
                                 % SPAWN only runs when rem(k, measurement_interval/dt) == 0,
                                 % so with dt = 0.5 and interval 2 the live steps are 4, 8, 12...
 
@@ -102,7 +102,7 @@ B = [0.5*dt^2 0;
 H_vel = [0 0 1 0;
          0 0 0 1];
 
-sigma_theta   = 0.2;
+sigma_theta   = 0.05;
 sigma_process = 0.5;           % motion model
 sigma_a       = 0.02;           % noise added to acceleration
 
@@ -128,7 +128,7 @@ mean_errors_mc           = zeros(num_mc, 1);
 mean_errors_per_drone_mc = zeros(num_mc, num_uavs);
 
 for mc = 1:num_mc
-    rng(mc);
+    rng(2);
 
     % TODO paired seeds: draw the world noise (theta, acceleration, velocity,
     % gps, range) here, before the `if particles` branch, so both methods see
@@ -188,10 +188,10 @@ for mc = 1:num_mc
                               rem(k, round(gps_interval/dt)) == 0;
 
             if particles
-                [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles( ...
+                [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles_c( ...
                         bel_agents{i}, theta_measured{i}, sigma_theta, vel_measured, ...
                         u_measured, A, B, Q_cov, V_cov, gps_measured, add_gps_measure, gps_cov);
-
+                   a = 2
                 [mu_pred{i}(:,k), P_pred{i}] = belief_estimate(bel_agents{i});
                 broadcasted_message{i} = intrasamples_to_intersamples(bel_agents{i}, inter_samples);
             else

@@ -117,7 +117,7 @@ if num_messages == 0
 else
     for i = 1:1:(num_messages)
         message = messages{i};
-        y = randsample(size(message,1), draw_from_message);
+        y = randsample(size(message,1), draw_from_message, true);
         samples_drawn = message(y, :);
         samples_drawn_total = cat(1, samples_drawn_total, samples_drawn);
     end
