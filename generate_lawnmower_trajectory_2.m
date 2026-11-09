@@ -255,7 +255,7 @@ for i = 1:n
     true_velocity_local{i} = [vl;  t];                  % 3 x N
     true_acc_global{i}     = [acc; t];                  % 3 x N
     true_acc_local{i}      = [al;  t];                  % 3 x N
-    true_theta{i}          = th;                        % 1 x N
+    true_theta{i}          = -th;                        % 1 x N
 end
 
 sim_data = [t(end); cfg.dt; n];      % sim_data -- see NOTE in the header
