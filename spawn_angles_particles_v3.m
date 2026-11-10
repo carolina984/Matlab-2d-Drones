@@ -12,10 +12,10 @@
 %% Simulation selection
 % [ measurement type , spawn iterations , particles , gps , start ]
 %   0 none, 1 lidar, 2 range            0 no 1 yes   0 no 1 yes   0 warm 1 cold
-spawn_parameters = [2, 2, 1, 1, 1];
+spawn_parameters = [2, 2, 0, 1, 1];
 
-k_last = 20;                    % last time step of the filter loop
-num_mc = 1;                     % Monte Carlo runs
+k_last = 40;                    % last time step of the filter loop
+num_mc = 5;                     % Monte Carlo runs
 
 debug_steps = [4 8];               % which k to draw, e.g. [4 8]. [] = no figures.
                                 % SPAWN only runs when rem(k, measurement_interval/dt) == 0,
@@ -24,16 +24,16 @@ debug_steps = [4 8];               % which k to draw, e.g. [4 8]. [] = no figure
 % particles
 inter_samples = 250;
 intra_samples = 1000;
-particle_h    = 0.4;
+particle_h    = 0.35;
 kk            = 2;              % candidate oversampling constant
 
 % measurements
 measurement_interval = 2;
-velocity_std         = 0.3;
+velocity_std         = 0.35;
 
 % range
 range_d_max = 50;
-range_std   = 0.4;
+range_std   = 0.3;
 
 % lidar
 lidar_d_max = 100;
@@ -123,6 +123,8 @@ for mc = 1:num_mc
     % the same world. Right now gaussian_belief consumes the stream and the
     % two methods diverge from drone 2 onward.
 
+    gps_on = generate_gps_availability(num_uavs, k_last, 0.1, 15);
+
     mu_pred        = cell(1, num_uavs);
     P_pred         = cell(1, num_uavs);
     theta_measured = cell(1, num_uavs);
@@ -172,8 +174,7 @@ for mc = 1:num_mc
             vel_measured = true_velocity_local{i}(1:2,index) + mvnrnd([0 0], V_cov).';
             gps_measured = x_true_state_global{i}(1:2,index) + mvnrnd([0 0], gps_noise).';
 
-            add_gps_measure = gps_activated == 1 && i == 2 && ...
-                              rem(k, round(gps_interval/dt)) == 0;
+            add_gps_measure = gps_on(k, i); %== 1 && i == 2 && rem(k, round(gps_interval/dt)) == 0;
 
             if particles
                 [bel_agents{i}, ess_pred(i,k)] = prediction_operation_particles_c( ...
@@ -181,6 +182,8 @@ for mc = 1:num_mc
                         u_measured, A, B, Q_cov, V_cov, gps_measured, add_gps_measure, gps_cov);
                 [mu_pred{i}(:,k), P_pred{i}] = belief_estimate(bel_agents{i});
                 broadcasted_message{i} = intrasamples_to_intersamples(bel_agents{i}, inter_samples);
+            
+            
             else
                 [P_pred{i}, mu_pred{i}(:,k)] = prediction_operation_with_angles( ...
                         index, i, mu_pred{i}(:,k-1), P_pred{i}, theta_measured{i}, ...
@@ -189,6 +192,13 @@ for mc = 1:num_mc
             end
 
             traceP(i,k) = trace(P_pred{i});
+        end
+        
+        %% Resampling operation for particles
+        if particles
+            for i = 1:num_uavs
+                bel_agents{i} = resampling_operation(bel_agents{i});
+            end
         end
 
         %% SPAWN correction
@@ -337,13 +347,6 @@ for mc = 1:num_mc
                 mu_pred{i}(:,k) = mu_spawn{i};
                 P_pred{i}       = p_spawn{i};
                 traceP(i,k)     = trace(P_pred{i});
-            end
-        end
-
-        %% Resampling operation for particles
-        if particles
-            for i = 1:num_uavs
-                bel_agents{i} = resampling_operation(bel_agents{i});
             end
         end
         

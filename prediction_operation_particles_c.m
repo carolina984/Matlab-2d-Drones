@@ -156,11 +156,11 @@ P_new  = 0.5 * (P_new + P_new.');                       % symmetrise
 % which is exactly why a particle/Gaussian comparison is not a comparison
 % of two estimators of the same thing unless you report ESS alongside.
 ess = 1 / sum(w.^2);
-% if ess < N/2
-%     idx    = randsample(N, N, true, w);
-%     belief = [X(idx,:), ones(N,1)/N, belief(idx,6)];
-% else
-%     belief = [X, w, belief(:,6)];
-% end
+if ess < N/2
+    idx    = randsample(N, N, true, w);
+    belief = [X(idx,:), ones(N,1)/N, belief(idx,6)];
+else
+    belief = [X, w, belief(:,6)];
+end
 
 end

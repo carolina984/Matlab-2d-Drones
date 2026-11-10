@@ -8,7 +8,7 @@ function [belief] = resampling_operation(belief)
 N = size(belief, 1);
 ess = 1 / sum(belief(:,5).^2);
 if ess < N/2
-    idx    = randsample(N, N, true, w);
+    idx    = randsample(N, N, true, belief(:,5));
     belief = [belief(idx,1:4), ones(N,1)/N, belief(idx,6)];
 else
     belief = [belief(:, 1:4), belief(:,5), belief(:,6)];
