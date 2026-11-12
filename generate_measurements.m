@@ -48,7 +48,7 @@ end
 % ---- GPS availability (simplified Gilbert) -----------------------------
 meas.gps_on = generate_gps_availability(n, K, cfg.gps_availability, ...
                                         cfg.gps_mean_outage);
-meas.gps_on(setdiff(1:n, cfg.gps_receivers), :) = false;
+meas.gps_on(:, setdiff(1:n, cfg.gps_receivers)) = false;
 
 % ---- range measurements---------------
 meas.z_range = nan(n, n, K);

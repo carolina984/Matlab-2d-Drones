@@ -1,4 +1,3 @@
-
 function [belief, ess] = prediction_operation_particles(belief, theta, sigma_theta, ...
                             vel_measured, u, A, B, Q_cov, V_cov, ...
                             gps_measured, add_gps, gps_cov)
@@ -113,11 +112,11 @@ end
 % belief = [X, ones(N,1)/N, belief(idx, 6)];
 % 
 ess = 1 / sum(w.^2);
-if ess < N/2
-    idx    = randsample(N, N, true, w);
-    belief = [X(idx,:), ones(N,1)/N, belief(idx,6)];
-else
-    belief = [X, w, belief(:,6)];
-end
+% if ess < N/2
+%     idx    = randsample(N, N, true, w);
+%     belief = [X(idx,:), ones(N,1)/N, belief(idx,6)];
+% else
+%     belief = [X, w, belief(:,6)];
+% end
 
 end

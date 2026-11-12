@@ -1,4 +1,4 @@
-function cfg = sim_config()
+function cfg = sim_config(ovr)
 %SIM_CONFIG  Every parameter in one place. Pass a struct to override any field.
 %
 %   cfg = sim_config()
@@ -26,11 +26,11 @@ cfg.sigma_process = 0.5;           % motion model
 cfg.velocity_std = 0.3;        % body-frame velocity sd [m/s]
 cfg.range_std    = 0.3;        % ranging sd [m]
 cfg.lidar_std   = 0.1;
-cfg.gps_std      = 0.3;        % GPS sd [m]
+cfg.gps_std      = 0.5;        % GPS sd [m]
 
 % ---- GPS availability (simplified Gilbert, two-state Markov) ----------
-cfg.gps_availability = 0.10;   % long-run fraction of steps with a fix
-cfg.gps_mean_outage  = 15;     % mean outage length [steps]
+cfg.gps_availability = 0.05;   % long-run fraction of steps with a fix
+cfg.gps_mean_outage  = 20;     % mean outage length [steps]
 
 % who gets gps
 
@@ -40,9 +40,9 @@ cfg.gps_receivers = 1:7;      % everyone (the line becomes a no-op)
 % cfg.gps_receivers = [];       % nobody — the fully GPS-denied baseline
 
 % ---- cooperation -------------------------------------------------------
-cfg.range_max          = 50;
+cfg.range_max          = 32;
 cfg.correction_t = 2;  % [s] between SPAWN rounds
-cfg.num_spawn_iter       = 3;
+cfg.num_spawn_iter       = 4;
 
 % ---- particles ---------------------------------------------------------
 cfg.intra_samples = 2000;
@@ -51,7 +51,7 @@ cfg.kk            = 2;         % candidate oversampling
 cfg.h             = 0.3;       % kernel bandwidth
 
 % ---- initialisation ----------------------------------------------------
-cfg.start = 0;
+cfg.start = 1;
 
 if cfg.start == 0
     %Warm Start
@@ -62,6 +62,13 @@ else
         %Cold Start
         cfg.p_pos_0 = 5.0;             
         cfg.p_vel_0 = 1.0;
+    end
+end
+
+% ---- apply overrides ---------------------------------------------------
+if nargin >= 1 && ~isempty(ovr)
+    for f = fieldnames(ovr).'
+        cfg.(f{1}) = ovr.(f{1});
     end
 end
 

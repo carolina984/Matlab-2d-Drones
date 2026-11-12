@@ -1,6 +1,6 @@
 function alg = alg_spawn_pf()
 %ALG_SPAWN_PF  Particle belief, cooperative (SPAWN / NBP).
-alg         = alg_pf();                     % same init / predict / estimate
+alg = alg_pred_pf();                   % same init / predict / estimate
 alg.name    = 'SPAWN-PF';
 alg.correct = @correct;
 end
