@@ -48,7 +48,7 @@ cfg.num_spawn_iter       = 4;
 cfg.intra_samples = 2000;
 cfg.inter_samples = 500;
 cfg.kk            = 2;         % candidate oversampling
-cfg.h             = 0.3;       % kernel bandwidth
+cfg.h = cfg.range_std;      % kernel bandwidth
 
 % ---- initialisation ----------------------------------------------------
 cfg.start = 1;

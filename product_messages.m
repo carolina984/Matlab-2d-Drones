@@ -78,7 +78,14 @@ else
     belief_as_mixture = [current_belief(:,1:2), current_belief(:,5)];
     v_pred = evaluate_all_points(samples_drawn_total, belief_as_mixture, h);
 
+
+
+    sum_v = sum_v + v_pred;       % the prediction is a proposal component too
+
     w_total = v_pred .* prod_v ./ sum_v;
+
+
+
 
 
     % ---- NEW 3: give every candidate a velocity -------------------------

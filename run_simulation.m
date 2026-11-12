@@ -1,5 +1,5 @@
 function R = run_simulation(algs, num_mc, cfg)
-%RUN_SIMULATION  Run k_correct algorithm on the same worlds and compare them.
+%RUN_SIMULATION  Run every algorithm on the same worlds and compare them.
 %
 %   R = run_simulation({@alg_ekf, @alg_spawn_pf}, 10)
 %
@@ -12,7 +12,7 @@ function R = run_simulation(algs, num_mc, cfg)
 if nargin < 3, cfg = sim_config(); end
 if nargin < 2, num_mc = 10;         end
 
-%% ---- the trajectory: the same path for k_correct world and k_correct method ---
+%% ---- the trajectory: the same path for every world and k_correct method ---
 [xg, vl, al, th, sim_data] = generate_lawnmower_trajectory(cfg.traj);
 traj.x_true_state_global = xg;
 traj.true_velocity_local = vl;
@@ -43,7 +43,7 @@ for mc = 1:num_mc
         alg = algs{a}();
         rng(50000 + 100*mc + a);        % only the ALGORITHM's randomness
 
-        % start k_correct drone
+        % start every drone
         S = cell(1, n);
         for i = 1:n
             S{i} = alg.init(cfg, meas.x0(:,i));
