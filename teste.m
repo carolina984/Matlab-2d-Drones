@@ -8,4 +8,4 @@
 % alg 7 ekf distributed
 % alg 8 joao gaspar
 
-R = run_simulation({@alg_pred_lin, @alg_spawn_lin, @alg_pred_pf}, 1);
+R = run_simulation({@alg_pred_lin, @alg_spawn_lin, @alg_pred_pf}, 10);

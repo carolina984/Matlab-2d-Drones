@@ -24,13 +24,13 @@ cfg.sigma_theta  = 0.15;       % heading sd [rad]
 cfg.sigma_a      = 0.2;        % accelerometer sd [m/s^2]
 cfg.sigma_process = 0.5;           % motion model
 cfg.velocity_std = 0.3;        % body-frame velocity sd [m/s]
-cfg.range_std    = 0.3;        % ranging sd [m]
+cfg.range_std    = 0.1;        % ranging sd [m]
 cfg.lidar_std   = 0.1;
-cfg.gps_std      = 0.5;        % GPS sd [m]
+cfg.gps_std      = 1;        % GPS sd [m]
 
 % ---- GPS availability (simplified Gilbert, two-state Markov) ----------
 cfg.gps_availability = 0.05;   % long-run fraction of steps with a fix
-cfg.gps_mean_outage  = 20;     % mean outage length [steps]
+cfg.gps_mean_outage  = 30;     % mean outage length [steps]
 
 % who gets gps
 
@@ -42,7 +42,7 @@ cfg.gps_receivers = 1:7;      % everyone (the line becomes a no-op)
 % ---- cooperation -------------------------------------------------------
 cfg.range_max          = 32;
 cfg.correction_t = 2;  % [s] between SPAWN rounds
-cfg.num_spawn_iter       = 4;
+cfg.num_spawn_iter       = 2;
 
 % ---- particles ---------------------------------------------------------
 cfg.intra_samples = 2000;

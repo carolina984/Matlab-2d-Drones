@@ -103,20 +103,7 @@ else
     w = w / sw;
 end
 
-% ess = 1 / sum(w.^2);
-% % 
-% belief = [X, w, belief(:, 6)];
-% % 
-% idx = randsample(N, N, true, w);
-% X   = X(idx, :);
-% belief = [X, ones(N,1)/N, belief(idx, 6)];
-% 
 ess = 1 / sum(w.^2);
-% if ess < N/2
-%     idx    = randsample(N, N, true, w);
-%     belief = [X(idx,:), ones(N,1)/N, belief(idx,6)];
-% else
-%     belief = [X, w, belief(:,6)];
-% end
+belief = [X, w, belief(:,6)];
 
 end
