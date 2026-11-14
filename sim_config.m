@@ -11,22 +11,22 @@ cfg = struct();
 cfg.num_uavs = 7;
 
 % ---- trajectory --------------------------------------------------------
-cfg.traj = struct('formation_spacing', 30, 'speed', 7, ...
+cfg.traj = struct('formation_spacing', 30, 'speed', 8, ...
                   'lane_length', 400, 'lane_spacing', 200, 'n_lanes', 5, ...
                   'dt', 0.1, 'sweep', -1);
 % ---- timing ------------------------------------------------------------
 cfg.dt     = 0.5;              % filter step [s]
 cfg.dt_sim = cfg.traj.dt;      % trajectory sample step [s]
-cfg.k_last = 800;
+cfg.k_last = 300;
 
 % ---- sensors -----------------------------------------------------------
 cfg.sigma_theta  = 0.15;       % heading sd [rad]
-cfg.sigma_a      = 0.2;        % accelerometer sd [m/s^2]
+cfg.sigma_a      = 0.3;        % accelerometer sd [m/s^2]
 cfg.sigma_process = 0.5;           % motion model
-cfg.velocity_std = 0.3;        % body-frame velocity sd [m/s]
-cfg.range_std    = 0.1;        % ranging sd [m]
+cfg.velocity_std = 0.35;        % body-frame velocity sd [m/s]
+cfg.range_std    = 0.3;        % ranging sd [m]
 cfg.lidar_std   = 0.1;
-cfg.gps_std      = 1;        % GPS sd [m]
+cfg.gps_std      = 0.6;        % GPS sd [m]
 
 % ---- GPS availability (simplified Gilbert, two-state Markov) ----------
 cfg.gps_availability = 0.05;   % long-run fraction of steps with a fix
@@ -42,11 +42,11 @@ cfg.gps_receivers = 1:7;      % everyone (the line becomes a no-op)
 % ---- cooperation -------------------------------------------------------
 cfg.range_max          = 32;
 cfg.correction_t = 2;  % [s] between SPAWN rounds
-cfg.num_spawn_iter       = 2;
+cfg.num_spawn_iter       = 3;
 
 % ---- particles ---------------------------------------------------------
-cfg.intra_samples = 2000;
-cfg.inter_samples = 500;
+cfg.intra_samples = 1000;
+cfg.inter_samples = 250;
 cfg.kk            = 2;         % candidate oversampling
 cfg.h = cfg.range_std;      % kernel bandwidth
 
@@ -61,7 +61,7 @@ else
     if cfg.start == 1
         %Cold Start
         cfg.p_pos_0 = 5.0;             
-        cfg.p_vel_0 = 1.0;
+        cfg.p_vel_0 = 0.1;
     end
 end
 

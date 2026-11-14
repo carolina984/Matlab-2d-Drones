@@ -12,7 +12,7 @@
 %% Simulation selection
 % [ measurement type , spawn iterations , particles , gps , start ]
 %   0 none, 1 lidar, 2 range            0 no 1 yes   0 no 1 yes   0 warm 1 cold
-spawn_parameters = [2, 2, 0, 1, 1];
+spawn_parameters = [2, 3, 0, 1, 1];
 
 k_last = 40;                    % last time step of the filter loop
 num_mc = 5;                     % Monte Carlo runs
