@@ -13,7 +13,7 @@ if nargin < 3, cfg = sim_config(); end
 if nargin < 2, num_mc = 10;         end
 
 %% ---- the trajectory: the same path for every world and k_correct method ---
-[xg, vl, al, th, sim_data] = generate_lawnmower_trajectory(cfg.traj);
+[xg, vl, al, th, sim_data] = generate_lawnmower_trajectory_rings(cfg.traj);
 traj.x_true_state_global = xg;
 traj.true_velocity_local = vl;
 traj.true_acc_local      = al;
