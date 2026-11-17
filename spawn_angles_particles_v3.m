@@ -33,7 +33,7 @@ velocity_std         = 0.35;
 
 % range
 range_d_max = 50;
-range_std   = 0.3;
+range_std   = 0.1;
 
 % lidar
 lidar_d_max = 100;

@@ -15,7 +15,7 @@
 %R1 = run_simulation({@alg_pred_lin, @alg_spawn_lin}, 10, sim_config(struct('num_spawn_iter',1)));
 % R2 = run_simulation({@alg_pred_lin, @alg_spawn_lin}, 10, sim_config(struct('num_spawn_iter',2)));
 % R3 = run_simulation({@alg_pred_lin, @alg_spawn_lin}, 10, sim_config(struct('num_spawn_iter',3)));
-R4 = run_simulation({@alg_pred_lin, @alg_spawn_range_lin, @alg_spawn_lidar}, 10, sim_config(struct('num_spawn_iter',4)));
+R4 = run_simulation({@alg_pred_lin, @alg_spawn_range_lin, @alg_spawn_lidar, @alg_bp_lidar}, 10, sim_config(struct('num_spawn_iter',10)));
 % % 
 % % for a = [0.05 0.2 0.5 1.0]
 % %     cfg = sim_config(struct('gps_availability', a));

@@ -20,24 +20,24 @@ cfg.dt_sim = cfg.traj.dt;      % trajectory sample step [s]
 cfg.k_last = 700;
 
 % ---- sensors -----------------------------------------------------------
-cfg.sigma_theta  = 0.2;       % heading sd [rad]
+cfg.sigma_theta  = 0.02;       % heading sd [rad]
 cfg.sigma_a      = 0.3;        % accelerometer sd [m/s^2]
 cfg.sigma_process = 0.5;           % motion model
 cfg.velocity_std = 0.35;        % body-frame velocity sd [m/s]
-cfg.range_std    = 0.05;        % ranging sd [m]
-cfg.lidar_std   = 0.05;
-cfg.gps_std      = 0.2;        % GPS sd [m]
+cfg.range_std    = 0.1;        % ranging sd [m]
+cfg.lidar_std   = 0.1;
+cfg.gps_std      = 2;        % GPS sd [m]
 
 % ---- GPS availability (simplified Gilbert, two-state Markov) ----------
-cfg.gps_availability = 0.2;   % long-run fraction of steps with a fix
-cfg.gps_mean_outage  = 30;     % mean outage length [steps]
+cfg.gps_availability = 0.03;   % long-run fraction of steps with a fix
+cfg.gps_mean_outage  = 60;     % mean outage length [steps]
 
 % who gets gps
 
 %cfg.gps_receivers = 2;        % one anchor
 %cfg.gps_receivers = [2 5];    % two, on opposite sides of the hex
 cfg.gps_receivers = 1:19;      % everyone (the line becomes a no-op)
-% cfg.gps_receivers = [];       % nobody — the fully GPS-denied baseline
+%cfg.gps_receivers = [];       % nobody — the fully GPS-denied baseline
 
 % ---- cooperation -------------------------------------------------------
 cfg.range_max          = 32;
@@ -61,7 +61,7 @@ else
     if cfg.start == 1
         %Cold Start
         cfg.p_pos_0 = 5.0;             
-        cfg.p_vel_0 = 0.1;
+        cfg.p_vel_0 = 1;
     end
 end
 
