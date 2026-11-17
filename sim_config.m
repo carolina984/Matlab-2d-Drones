@@ -25,7 +25,7 @@ cfg.sigma_a      = 0.3;        % accelerometer sd [m/s^2]
 cfg.sigma_process = 0.5;           % motion model
 cfg.velocity_std = 0.35;        % body-frame velocity sd [m/s]
 cfg.range_std    = 0.05;        % ranging sd [m]
-cfg.lidar_std   = 0.1;
+cfg.lidar_std   = 0.05;
 cfg.gps_std      = 0.2;        % GPS sd [m]
 
 % ---- GPS availability (simplified Gilbert, two-state Markov) ----------

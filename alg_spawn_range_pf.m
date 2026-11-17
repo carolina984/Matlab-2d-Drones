@@ -1,4 +1,4 @@
-function alg = alg_spawn_pf()
+function alg = alg_spawn_range_pf()
 %ALG_SPAWN_PF  Particle belief, cooperative (SPAWN / NBP).
 alg = alg_pred_pf();                   % same init / predict / estimate
 alg.name    = 'SPAWN-PF';

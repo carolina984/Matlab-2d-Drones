@@ -33,6 +33,7 @@ end
 
 % error of drone i, at step k, in world mc, for algorithm a
 err = nan(n, K, num_mc, nA);
+nees = nan(n, K, num_mc, nA);
 
 %% ---- the experiment ---------------------------------------------------
 for mc = 1:num_mc
@@ -62,6 +63,8 @@ for mc = 1:num_mc
             for i = 1:n
                 mu = alg.estimate(S{i});
                 err(i,k,mc,a) = norm(mu(1:2) - meas.truth(:,i,k));
+                e = mu(1:2) - meas.truth(:,i,k);
+                nees(i,k,mc,a) = e.' * (S{i}.P(1:2,1:2) \ e);
             end
         end
 
